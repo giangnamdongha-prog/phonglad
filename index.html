@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phòng Thí Nghiệm Điện Ảo - GĐ3 phonglab.giangnam146.site</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .digital-screen {
+            background-color: #0b132b;
+            color: #38bdf8;
+            font-family: monospace;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.8);
+        }
+        .banana-jack, .interactive-switch {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .banana-jack:active, .interactive-switch:active {
+            transform: scale(1.25);
+        }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col pb-8">
+
+    <header class="bg-slate-900 border-b border-slate-800 py-2.5 px-3 sticky top-0 z-50 shadow-md">
+        <div class="max-w-md mx-auto flex justify-between items-center gap-2">
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-flask-vial text-base"></i>
+                </div>
+                <div>
+                    <h1 class="text-xs sm:text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
+                        Lab Điện Ảo <span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded-full border border-indigo-500/30">USB & WiFi</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400">phonglab.giangnam146.site</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="openModal('guideModal')" class="bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-semibold px-2 py-1.5 rounded-xl transition shadow flex items-center gap-1" title="Hướng dẫn đấu dây & vẽ sơ đồ">
+                    <i class="fa-solid fa-book-open"></i> HD
+                </button>
+                <button onclick="openModal('esp32Modal')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-semibold px-2 py-1.5 rounded-xl transition shadow flex items-center gap-1">
+                    <i class="fa-solid fa-microchip"></i> HW
+                </button>
+                <button onclick="openModal('labSelectorModal')" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold px-2 py-1.5 rounded-xl transition shadow flex items-center gap-1">
+                    <i class="fa-solid fa-list-check"></i> (<span id="currentLabNum">1</span>/8)
+                </button>
+                <button onclick="openModal('whiteboardModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold px-2 py-1.5 rounded-xl transition shadow flex items-center gap-1">
+                    <i class="fa-solid fa-pen-nib"></i> Sơ Đồ
+                </button>
+                <button onclick="resetFullLab()" class="bg-red-500/10 text-red-400 border border-red-500/20 text-[11px] font-semibold px-2 py-1.5 rounded-xl transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-md w-full mx-auto p-3 flex flex-col gap-4">
+
+        <!-- Power Supply & Multimeter Selection Bar -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-xl relative overflow-hidden">
+            <div class="flex justify-between items-center mb-2.5">
+                <h2 class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-amber-400"></i> Nguồn Điện & Thiết Bị Đo
+                </h2>
+                <div class="flex items-center gap-2">
+                    <span id="esp32Badge" class="hidden text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/30">HW: ON</span>
+                    <span id="powerLed" class="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span id="powerTextState" class="text-[11px] text-slate-400 font-medium">Tắt</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] text-slate-400">Loại nguồn:</span>
+                    <select id="sourceTypeSelect" onchange="changeSourceType(this.value)" class="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2 py-1 text-[11px] focus:outline-none">
+                        <option value="DC">DC (Một chiều 0-30V)</option>
+                        <option value="AC">AC (Xoay chiều 50Hz)</option>
+                        <option value="PWM">Xung PWM (Điều khiển)</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] text-slate-400">Thiết bị đo ảo:</span>
+                    <select id="meterSelectBox" onchange="changeMeterType(this.value)" class="bg-slate-800 border border-amber-600/60 text-amber-300 font-semibold rounded-lg px-2 py-1 text-[11px] focus:outline-none">
+                        <option value="multimeter">Đồng hồ vạn năng DT-9205A+</option>
+                        <option value="voltmeter">Vôn kế chuyên dụng (V)</option>
+                        <option value="ammeter">Ampe kế chuyên dụng (A)</option>
+                        <option value="oscilloscope">Dao động ký trực tiếp</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Điện áp ra / Biên độ:</span>
+                        <strong id="sourceVoltDisplay" class="text-amber-400 text-xs">12.0 V</strong>
+                    </div>
+                    <input type="range" id="sourceSlider" min="0" max="30" step="0.5" value="12" oninput="updateSourceVoltage(this.value)" class="w-full accent-amber-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                </div>
+
+                <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                    <button onclick="setCircuitTopology('series')" id="topoSeriesBtn" class="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-indigo-600 text-white border border-indigo-400 transition">Nối tiếp</button>
+                    <button onclick="setCircuitTopology('parallel')" id="topoParallelBtn" class="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">Song song</button>
+                </div>
+
+                <button id="masterPowerBtn" onclick="toggleMasterPower()" class="w-full py-2 rounded-xl font-bold text-xs transition shadow flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 text-white mt-1">
+                    <i class="fa-solid fa-power-off"></i> <span id="powerBtnLabel">BẬT NGUỒN CHÍNH</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex flex-col">
+            <div class="flex justify-between items-center mb-2.5">
+                <h2 class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-microchip text-emerald-400"></i> <span id="boardTitle">Mạch Thí Nghiệm ($R_1, R_2$)</span>
+                </h2>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="toggleCircuitSwitch()" id="circuitSwitchBadge" class="interactive-switch bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                        <i class="fa-solid fa-toggle-on text-amber-400"></i> Công tắc: <span id="switchStateText">ĐÓNG (ON)</span>
+                    </button>
+                    <button onclick="openModal('componentModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-semibold px-2 py-1 rounded-lg transition">
+                        <i class="fa-solid fa-sliders text-amber-400"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SVG Circuit Canvas -->
+            <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-center items-center relative">
+                <svg class="w-full h-36" viewBox="0 0 450 200" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 70 100 L 110 100" stroke="#475569" stroke-width="4" stroke-linecap="round"/>
+                    
+                    <g class="interactive-switch" onclick="toggleCircuitSwitch()" transform="translate(110, 85)">
+                        <rect x="0" y="0" width="30" height="30" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+                        <text x="15" y="19" fill="#fde047" font-size="9" font-weight="bold" text-anchor="middle" id="svgSwitchLabel">K:ON</text>
+                    </g>
+
+                    <path d="M 140 100 L 170 100" stroke="#475569" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M 230 100 L 260 100" stroke="#475569" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M 320 100 L 380 100" stroke="#475569" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M 380 100 L 380 160 L 70 160 L 70 100" stroke="#475569" stroke-width="4" fill="none" stroke-linejoin="round"/>
+
+                    <rect x="40" y="75" width="55" height="50" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+                    <text x="67" y="105" fill="#94a3b8" font-size="10" font-weight="bold" text-anchor="middle">NGUỒN</text>
+
+                    <g transform="translate(170, 80)">
+                        <rect x="0" y="0" width="60" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                        <text x="30" y="25" fill="#fde047" font-size="11" font-weight="bold" text-anchor="middle" id="svgR1Text">R1: 220Ω</text>
+                    </g>
+
+                    <g transform="translate(260, 80)">
+                        <rect x="0" y="0" width="60" height="40" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                        <text x="30" y="25" fill="#93c5fd" font-size="11" font-weight="bold" text-anchor="middle" id="svgR2Text">R2: 330Ω</text>
+                    </g>
+
+                    <!-- Terminal Nodes A, B, C, D -->
+                    <g class="banana-jack" onclick="connectProbeToNode('A')">
+                        <circle cx="70" cy="100" r="13" fill="#334155" stroke="#f87171" stroke-width="2" id="jack-A-ring"/>
+                        <circle cx="70" cy="100" r="6" fill="#ef4444" id="jack-A-dot"/>
+                        <text x="70" y="50" fill="#f87171" font-size="10" font-weight="bold" text-anchor="middle">Điểm A (+)</text>
+                    </g>
+
+                    <g class="banana-jack" onclick="connectProbeToNode('B')">
+                        <circle cx="200" cy="100" r="13" fill="#334155" stroke="#cbd5e1" stroke-width="2" id="jack-B-ring"/>
+                        <circle cx="200" cy="100" r="6" fill="#94a3b8" id="jack-B-dot"/>
+                        <text x="200" y="50" fill="#cbd5e1" font-size="10" font-weight="bold" text-anchor="middle">Điểm B</text>
+                    </g>
+
+                    <g class="banana-jack" onclick="connectProbeToNode('C')">
+                        <circle cx="320" cy="100" r="13" fill="#334155" stroke="#60a5fa" stroke-width="2" id="jack-C-ring"/>
+                        <circle cx="320" cy="100" r="6" fill="#3b82f6" id="jack-C-dot"/>
+                        <text x="320" y="50" fill="#60a5fa" font-size="10" font-weight="bold" text-anchor="middle">Điểm C</text>
+                    </g>
+
+                    <g class="banana-jack" onclick="connectProbeToNode('D')">
+                        <circle cx="225" cy="160" r="13" fill="#334155" stroke="#94a3b8" stroke-width="2" id="jack-D-ring"/>
+                        <circle cx="225" cy="160" r="6" fill="#64748b" id="jack-D-dot"/>
+                        <text x="225" y="185" fill="#94a3b8" font-size="10" font-weight="bold" text-anchor="middle">Điểm D (-)</text>
+                    </g>
+                </svg>
+
+                <div class="mt-2.5 w-full bg-slate-900/90 border border-slate-800 p-2 rounded-xl flex flex-col gap-2 text-xs">
+                    <div class="flex items-center gap-1.5 justify-between">
+                        <button onclick="setActiveProbe('red')" id="activeProbeRedBtn" class="flex-1 py-1.5 px-2 rounded-lg font-bold bg-red-600 text-white shadow ring-2 ring-red-400 flex items-center justify-center gap-1 text-[11px]">
+                            <span class="w-2 h-2 rounded-full bg-white"></span> Đỏ (+): <span id="probeRedNodeText">Trống</span>
+                        </button>
+                        <button onclick="setActiveProbe('black')" id="activeProbeBlackBtn" class="flex-1 py-1.5 px-2 rounded-lg font-bold bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center gap-1 text-[11px] hover:bg-slate-700">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span> Đen (-): <span id="probeBlackNodeText">Trống</span>
+                        </button>
+                    </div>
+                    <button onclick="resetProbes()" class="w-full bg-slate-800 hover:bg-slate-700 py-1 rounded-lg text-slate-300 transition text-[10px] border border-slate-700">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Rút toàn bộ dây đo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex flex-col items-center">
+            <div class="w-full flex justify-between items-center mb-2.5">
+                <h2 class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-gauge text-amber-400"></i> Thiết Bị Đo (<span id="activeMeterTitle">Đồng Hồ Vạn Năng</span>)
+                </h2>
+                <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-mono">USB/WiFi</span>
+            </div>
+
+            <div class="w-full bg-gradient-to-b from-amber-600 to-amber-700 rounded-2xl p-3 shadow-2xl border-4 border-amber-800 flex flex-col items-center">
+                
+                <div class="w-full digital-screen rounded-xl p-2.5 mb-2.5 flex justify-between items-center border-2 border-slate-950 shadow-inner">
+                    <div class="flex items-center gap-1.5">
+                        <span id="multimeterUnit" class="text-[11px] font-bold text-slate-400">VDC</span>
+                        <span id="multimeterOL" class="text-[10px] text-red-400 font-bold hidden animate-pulse">OL</span>
+                        <span id="multimeterHold" class="text-[10px] text-amber-400 font-bold hidden">HOLD</span>
+                    </div>
+                    <div class="text-2xl font-bold tracking-wider text-right text-sky-400" id="multimeterScreenValue">
+                        0.00
+                    </div>
+                </div>
+
+                <div class="w-full bg-slate-950/90 p-2.5 rounded-xl border border-amber-900/60 mb-2.5 grid grid-cols-6 gap-1 text-center" id="modeSelectorContainer">
+                    <button onclick="setMultimeterMode('VDC')" id="modeBtn-VDC" class="py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-blue-600 text-white shadow">V⎓</button>
+                    <button onclick="setMultimeterMode('VAC')" id="modeBtn-VAC" class="py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-slate-800 text-slate-300 border border-slate-700">V~</button>
+                    <button onclick="setMultimeterMode('Hz')" id="modeBtn-Hz" class="py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-slate-800 text-slate-300 border border-slate-700">Hz</button>
+                    <button onclick="setMultimeterMode('Ohm')" id="modeBtn-Ohm" class="py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-slate-800 text-slate-300 border border-slate-700">Ω</button>
+                    <button onclick="setMultimeterMode('A')" id="modeBtn-A" class="py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-slate-800 text-slate-300 border border-slate-700">A⎓</button>
+                    <button onclick="setMultimeterMode('AAC')" id="modeBtn-AAC" class="py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-slate-800 text-slate-300 border border-slate-700">A~</button>
+                </div>
+
+                <div class="w-full flex justify-between items-center mb-2 px-1">
+                    <button onclick="toggleHold()" id="holdBtn" class="bg-slate-900/80 text-slate-300 text-[10px] font-semibold px-2.5 py-1 rounded border border-slate-700">HOLD</button>
+                    <button onclick="checkCircuitSafetyAndErrors()" class="bg-indigo-950 text-indigo-300 border border-indigo-700 text-[10px] font-semibold px-2 py-1 rounded"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Lỗi</button>
+                    <button onclick="openModal('scopeModal')" class="bg-slate-900/80 text-emerald-300 text-[10px] font-semibold px-2.5 py-1 rounded border border-slate-700"><i class="fa-solid fa-wave-square mr-1"></i> Sóng</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex flex-col gap-2.5">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-clipboard-question text-emerald-400"></i> Bảng Nộp Kết Quả & AI
+                </h2>
+                <div class="text-[11px] bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 font-bold text-emerald-400">
+                    Điểm: <span id="scoreDisplay">0</span> / 10
+                </div>
+            </div>
+
+            <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 flex flex-col gap-2.5">
+                <div id="currentTaskPromptBox" class="text-[11px] text-indigo-300 bg-indigo-950/60 p-2 rounded-lg border border-indigo-800/50 leading-relaxed">
+                    <strong>Bài 1: Đo điện áp nguồn DC.</strong> Bật nguồn chính và công tắc K (ON). Cắm dây Đỏ vào A (+), dây Đen vào D (-) và đọc giá trị.
+                </div>
+
+                <div class="flex gap-2">
+                    <input type="number" id="studentAnswerInput" placeholder="Nhập số đo..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none font-mono">
+                    <span id="answerUnitSpan" class="bg-slate-900 border border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-300 flex items-center font-bold">V</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="submitStudentResult()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-3 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane"></i> Ghi nhận
+                    </button>
+                    <button onclick="nextLabTask()" class="bg-slate-800 text-slate-200 font-semibold py-2 px-2.5 rounded-xl text-xs transition border border-slate-700">
+                        Tiếp <i class="fa-solid fa-arrow-right ml-0.5"></i>
+                    </button>
+                </div>
+
+                <div id="aiFeedbackBox" class="text-xs p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hidden"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Instruction Guide (Hướng Dẫn Thực Hành Tích Hợp) -->
+    <div id="guideModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-4 shadow-2xl flex flex-col gap-3 max-h-[85vh]">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-amber-400 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-open"></i> Hướng Dẫn Chi Tiết Sử Dụng & Đấu Dây
+                </h3>
+                <button onclick="closeModal('guideModal')" class="text-slate-400 text-base"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-3 pr-1 text-[11px] text-slate-300 leading-relaxed">
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <strong class="text-white block mb-1">1. Nguyên tắc cắm dây đo $V_{DC}$ / $V_{AC}$ (Mắc Song Song)</strong>
+                    <p class="text-slate-400">Vôn kế bắt buộc mắc song song với linh kiện. Cực dương (+) nối điểm dương, cực âm (-) nối điểm COM.</p>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <strong class="text-white block mb-1">2. Nguyên tắc cắm dây đo dòng $A_{DC}$ (Mắc Nối Tiếp)</strong>
+                    <p class="text-slate-400">Ampe kế có điện trở trong rất nhỏ, tuyệt đối không mắc song song trực tiếp hai cực nguồn (gây đoản mạch).</p>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <strong class="text-white block mb-1">3. Đo trị số điện trở $\Omega$ (Khi mạch Mất Nguồn)</strong>
+                    <p class="text-slate-400">TUYỆT ĐỐI KHÔNG BẬT NGUỒN khi đo Ohm để tránh hỏng thiết bị và hiện chữ OL.</p>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <strong class="text-white block mb-1">4. Cách vẽ và xóa linh kiện trên Sơ Đồ</strong>
+                    <p class="text-slate-400">Mở mục <strong>Sơ Đồ</strong> để chọn linh kiện đặt vào bảng. Dùng chuột phải hoặc <em>nhấn giữ trên điện thoại khoảng 0.6 giây</em> để xóa linh kiện.</p>
+                </div>
+            </div>
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="closeModal('guideModal')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-xl font-semibold">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Hardware Connection (WiFi & USB) -->
+    <div id="esp32Modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-4 shadow-2xl flex flex-col gap-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-microchip text-cyan-400"></i> Kết Nối Phần Cứng (phonglab.giangnam146.site)
+                </h3>
+                <button onclick="closeModal('esp32Modal')" class="text-slate-400 text-base"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1 font-semibold">Phương thức 1: Kết nối Cổng USB (Web Serial)</label>
+                    <button onclick="connectUSBSerial()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-xl transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-usb"></i> Kết nối Cổng USB
+                    </button>
+                </div>
+
+                <div class="border-t border-slate-800 pt-2">
+                    <label class="text-slate-400 block mb-1 font-semibold">Phương thức 2: Kết nối WiFi (WebSocket)</label>
+                    <input type="text" id="esp32IpInput" placeholder="ws://192.168.x.x:81" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none font-mono mb-2">
+                    <div class="flex gap-2">
+                        <button onclick="connectESP32()" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 rounded-xl transition">Kết nối WiFi</button>
+                        <button onclick="disconnectHardware()" class="bg-red-500/20 text-red-400 border border-red-500/30 font-semibold py-2 px-3 rounded-xl transition">Ngắt</button>
+                    </div>
+                </div>
+
+                <div id="esp32StatusText" class="text-[11px] text-slate-400 bg-slate-950 p-2 rounded-lg border border-slate-800">Trạng thái: Chưa kết nối thiết bị phần cứng.</div>
+            </div>
+            <div class="flex justify-end pt-1">
+                <button onclick="closeModal('esp32Modal')" class="bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Lab Selector -->
+    <div id="labSelectorModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-4 shadow-2xl flex flex-col gap-3 max-h-[80vh]">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check text-indigo-400"></i> Danh Sách 8 Bài Thực Hành GĐ3
+                </h3>
+                <button onclick="closeModal('labSelectorModal')" class="text-slate-400 text-base"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-2 pr-1 text-xs" id="labListContainer"></div>
+            <div class="flex justify-end pt-1 border-t border-slate-800">
+                <button onclick="closeModal('labSelectorModal')" class="bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Whiteboard & Component Stamps (Right-click / Long-press delete) -->
+    <div id="whiteboardModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex flex-col p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full mx-auto p-3.5 shadow-2xl flex flex-col gap-2.5 flex-1 max-h-[92vh]">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-pen-nib text-emerald-400"></i> Bảng Sơ Đồ & Linh Kiện (Chuột phải / Nhấn giữ để xóa)
+                </h3>
+                <button onclick="closeModal('whiteboardModal')" class="text-slate-400 text-base"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Components Toolbar -->
+            <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex gap-1.5 overflow-x-auto text-[10px]">
+                <button onclick="setStamp('resistor')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-zig-zag"></i> Điện trở R</button>
+                <button onclick="setStamp('capacitor')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-battery-half"></i> Tụ điện C</button>
+                <button onclick="setStamp('inductor')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-purple-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-wave-square"></i> Cuộn cảm L</button>
+                <button onclick="setStamp('transformer')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-pink-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-arrows-split-up-and-left"></i> Máy biến áp</button>
+                <button onclick="setStamp('motor1p')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-fan"></i> Động cơ 1 pha</button>
+                <button onclick="setStamp('motor3p')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-gear"></i> Động cơ 3 pha</button>
+                <button onclick="setStamp('esp32_board')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-microchip"></i> Mạch ESP32</button>
+                <button onclick="setStamp('source')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-blue-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-bolt"></i> Nguồn</button>
+                <button onclick="setStamp('switch')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-toggle-on"></i> Công tắc K</button>
+                <button onclick="setStamp('voltmeter')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-gauge-high"></i> Vôn kế (V)</button>
+                <button onclick="setStamp('ammeter')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-gauge"></i> Ampe kế (A)</button>
+                <button onclick="setStamp('multimeter')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg border border-slate-700 flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-toolbox"></i> Vạn năng</button>
+            </div>
+            <p id="activeStampText" class="text-[10px] text-slate-400 px-1">Chế độ: <strong>Vẽ tự do (Bút)</strong>. Chọn linh kiện để đặt (Bấm chuột phải / Nhấn giữ để xóa).</p>
+            
+            <div class="bg-white rounded-xl overflow-hidden relative flex-1 border border-slate-700 shadow-inner flex items-center justify-center">
+                <canvas id="paintCanvas" class="w-full h-full cursor-crosshair"></canvas>
+            </div>
+
+            <div class="flex items-center justify-between gap-1 pt-1 bg-slate-950 p-2 rounded-xl border border-slate-800">
+                <div class="flex items-center gap-1.5">
+                    <button onclick="setPenColor('#ef4444')" class="w-6 h-6 rounded-full bg-red-500 border border-white/40 shadow"></button>
+                    <button onclick="setPenColor('#3b82f6')" class="w-6 h-6 rounded-full bg-blue-500 border border-white/40 shadow"></button>
+                    <button onclick="setPenColor('#0f172a')" class="w-6 h-6 rounded-full bg-slate-900 border border-white/40 shadow"></button>
+                    <button onclick="setStamp(null)" class="px-2 py-1 bg-slate-800 text-slate-300 rounded text-[10px]">✏️ Bút</button>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="undoLastStamp()" class="bg-amber-500/20 text-amber-400 text-[10px] font-semibold px-2 py-1 rounded-lg border border-amber-500/30"><i class="fa-solid fa-rotate-left mr-1"></i> Xóa gần nhất</button>
+                    <button onclick="clearCanvas()" class="bg-red-500/20 text-red-400 text-[10px] font-semibold px-2 py-1 rounded-lg border border-red-500/30"><i class="fa-solid fa-trash mr-1"></i> Xóa hết</button>
+                    <button onclick="closeModal('whiteboardModal')" class="bg-slate-800 text-white text-[10px] font-semibold px-3 py-1 rounded-lg">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Component Editor -->
+    <div id="componentModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-4 shadow-2xl flex flex-col gap-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders text-amber-400"></i> Thông số linh kiện
+                </h3>
+                <button onclick="closeModal('componentModal')" class="text-slate-400 text-base"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Điện trở R1 (<span id="r1ValText">220</span> Ω):</label>
+                    <input type="range" id="r1Slider" min="10" max="1000" step="10" value="220" oninput="updateResistor('r1', this.value)" class="w-full accent-amber-500 bg-slate-800 h-2 rounded">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Điện trở R2 (<span id="r2ValText">330</span> Ω):</label>
+                    <input type="range" id="r2Slider" min="10" max="1000" step="10" value="330" oninput="updateResistor('r2', this.value)" class="w-full accent-blue-500 bg-slate-800 h-2 rounded">
+                </div>
+            </div>
+            <div class="flex justify-end pt-1">
+                <button onclick="closeModal('componentModal')" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-xl">Áp dụng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Oscilloscope -->
+    <div id="scopeModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-4 shadow-2xl flex flex-col gap-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-wave-square text-emerald-400"></i> Dao Động Ký
+                </h3>
+                <button onclick="closeModal('scopeModal')" class="text-slate-400 text-base"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
+                <div class="w-full h-36 bg-black rounded-lg border border-slate-800 relative overflow-hidden flex items-center justify-center">
+                    <canvas id="scopeCanvas" width="320" height="140" class="relative z-10 w-full h-full"></canvas>
+                </div>
+            </div>
+            <div class="flex justify-end pt-1">
+                <button onclick="closeModal('scopeModal')" class="bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            if (type === 'click') {
+                osc.frequency.setValueAtTime(700, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.04);
+            } else if (type === 'beep') {
+                osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        const labTasks = [
+            { id: 1, title: "Bài 1: Đo điện áp nguồn DC", prompt: "Bật nguồn chính và công tắc K (ON). Cắm dây Đỏ vào A (+), dây Đen vào D (-) và đọc giá trị.", targetMode: "VDC", targetRed: "A", targetBlack: "D", evalFunc: s => (s.powerOn && s.switchClosed) ? s.sourceVolt : 0 },
+            { id: 2, title: "Bài 2: Đo điện áp xoay chiều AC", prompt: "Chuyển nguồn sang AC (50Hz), bật công tắc K. Chuyển đồng hồ sang VAC, đo áp nguồn A và D.", targetMode: "VAC", targetRed: "A", targetBlack: "D", evalFunc: s => (s.powerOn && s.switchClosed && s.sourceType === 'AC') ? s.sourceVolt : 0 },
+            { id: 3, title: "Bài 3: Đo tần số tín hiệu (Hz)", prompt: "Nguồn đang ở AC 50Hz, bật công tắc K. Chuyển đồng hồ sang chế độ Hz để đo tần số sóng.", targetMode: "Hz", targetRed: "A", targetBlack: "D", evalFunc: s => (s.powerOn && s.switchClosed && s.sourceType === 'AC') ? 50.0 : 0 },
+            { id: 4, title: "Bài 4: Đo giá trị điện trở R1", prompt: "Tắt nguồn chính, chuyển đồng hồ sang chế độ Ω. Cắm que đo qua hai đầu R1 (điểm A và B) để đo trị số.", targetMode: "Ohm", targetRed: "A", targetBlack: "B", evalFunc: s => s.r1 },
+            { id: 5, title: "Bài 5: Đo giá trị điện trở R2", prompt: "Tắt nguồn chính, chuyển đồng hồ sang chế độ Ω. Cắm que đo qua hai đầu R2 (điểm B và C).", targetMode: "Ohm", targetRed: "B", targetBlack: "C", evalFunc: s => s.r2 },
+            { id: 6, title: "Bài 6: Đo sụt áp trên R1", prompt: "Bật nguồn DC và công tắc K. Đo điện áp rơi trên điện trở R1 (que đỏ ở A, que đen ở B).", targetMode: "VDC", targetRed: "A", targetBlack: "B", evalFunc: s => (s.powerOn && s.switchClosed) ? s.sourceVolt * (s.r1 / (s.r1 + s.r2)) : 0 },
+            { id: 7, title: "Bài 7: Đo sụt áp trên R2", prompt: "Bật nguồn DC và công tắc K. Đo điện áp rơi trên R2 (que đỏ ở B, que đen ở C).", targetMode: "VDC", targetRed: "B", targetBlack: "C", evalFunc: s => (s.powerOn && s.switchClosed) ? s.sourceVolt * (s.r2 / (s.r1 + s.r2)) : 0 },
+            { id: 8, title: "Bài 8: Đo cường độ dòng điện mạch (A)", prompt: "Bật nguồn DC và công tắc K. Chuyển đồng hồ sang chế độ A. Mắc nối tiếp để đo cường độ dòng điện.", targetMode: "A", targetRed: "A", targetBlack: "B", evalFunc: s => (s.powerOn && s.switchClosed) ? (s.sourceVolt / (s.r1 + s.r2)) * 1000 : 0 }
+        ];
+
+        let state = {
+            currentTaskIdx: 0,
+            powerOn: false,
+            switchClosed: true,
+            sourceType: 'DC',
+            sourceVolt: 12.0,
+            r1: 220,
+            r2: 330,
+            topology: 'series',
+            meterType: 'multimeter',
+            multimeterMode: 'VDC',
+            activeProbeTarget: 'red',
+            probeRedNode: null,
+            probeBlackNode: null,
+            holdActive: false,
+            score: 0,
+            hwConnected: false,
+            hwRealValue: null
+        };
+
+        const unitMap = { 'VDC': 'V', 'VAC': 'V', 'Hz': 'Hz', 'Ohm': 'Ω', 'A': 'mA', 'AAC': 'mA' };
+
+        let esp32Socket = null;
+        function connectESP32() {
+            const url = document.getElementById('esp32IpInput').value.trim();
+            if(!url) {
+                alert("Vui lòng nhập WebSocket URL của ESP32!");
+                return;
+            }
+            try {
+                esp32Socket = new WebSocket(url);
+                esp32Socket.onopen = function() {
+                    state.hwConnected = true;
+                    document.getElementById('esp32Badge').classList.remove('hidden');
+                    document.getElementById('esp32StatusText').innerText = "Trạng thái: Đã kết nối WiFi thành công với phonglab.giangnam146.site!";
+                    playSound('beep');
+                };
+                esp32Socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if(data.value !== undefined) {
+                            state.hwRealValue = parseFloat(data.value);
+                            calculateMultimeter();
+                        }
+                    } catch(e) {}
+                };
+                esp32Socket.onerror = function() {
+                    document.getElementById('esp32StatusText').innerText = "Trạng thái: Lỗi kết nối WebSocket WiFi.";
+                    playSound('error');
+                };
+                esp32Socket.onclose = function() {
+                    state.hwConnected = false;
+                    document.getElementById('esp32Badge').classList.add('hidden');
+                    document.getElementById('esp32StatusText').innerText = "Trạng thái: Đã ngắt kết nối WiFi.";
+                };
+            } catch(e) {
+                alert("Không thể khởi tạo WebSocket.");
+            }
+        }
+
+        let serialPort = null;
+        let serialReader = null;
+        async function connectUSBSerial() {
+            if (!("serial" in navigator)) {
+                alert("Trình duyệt của bạn không hỗ trợ Web Serial API. Hãy dùng Chrome hoặc Edge.");
+                return;
+            }
+            try {
+                serialPort = await navigator.serial.requestPort();
+                await serialPort.open({ baudRate: 115200 });
+                state.hwConnected = true;
+                document.getElementById('esp32Badge').classList.remove('hidden');
+                document.getElementById('esp32StatusText').innerText = "Trạng thái: Đã kết nối Cổng USB Serial thành công!";
+                playSound('beep');
+
+                readSerialLoop();
+            } catch (error) {
+                alert("Không thể kết nối cổng USB: " + error);
+                playSound('error');
+            }
+        }
+
+        async function readSerialLoop() {
+            const textDecoder = new TextDecoderStream();
+            const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+            const reader = textDecoder.readable.getReader();
+            serialReader = reader;
+
+            try {
+                let buffer = "";
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        buffer += value;
+                        let lines = buffer.split("\n");
+                        buffer = lines.pop();
+                        for (let line of lines) {
+                            line = line.trim();
+                            try {
+                                const data = JSON.parse(line);
+                                if (data.value !== undefined) {
+                                    state.hwRealValue = parseFloat(data.value);
+                                    calculateMultimeter();
+                                }
+                            } catch(e) {
+                                let num = parseFloat(line);
+                                if (!isNaN(num)) {
+                                    state.hwRealValue = num;
+                                    calculateMultimeter();
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Serial read error:", error);
+            } finally {
+                reader.releaseLock();
+            }
+        }
+
+        function disconnectHardware() {
+            if(esp32Socket) esp32Socket.close();
+            if(serialReader) serialReader.cancel();
+            if(serialPort) serialPort.close();
+
+            state.hwConnected = false;
+            state.hwRealValue = null;
+            document.getElementById('esp32Badge').classList.add('hidden');
+            document.getElementById('esp32StatusText').innerText = "Trạng thái: Đã ngắt kết nối phần cứng.";
+            playSound('click');
+        }
+
+        window.onload = function() {
+            renderLabList();
+            updateTaskPrompt();
+            calculateMultimeter();
+            drawOscilloscope();
+            initWhiteboard();
+        };
+
+        let isDrawing = false;
+        let paintCtx = null;
+        let penColor = '#ef4444';
+        let activeStamp = null;
+        let placedStamps = [];
+
+        function initWhiteboard() {
+            const canvas = document.getElementById('paintCanvas');
+            if(!canvas) return;
+            paintCtx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight || 280;
+
+            paintCtx.strokeStyle = penColor;
+            paintCtx.lineWidth = 3;
+            paintCtx.lineCap = 'round';
+            paintCtx.lineJoin = 'round';
+
+            canvas.onmousedown = function(e) {
+                if (e.button === 2) {
+                    e.preventDefault();
+                    undoLastStamp();
+                    return;
+                }
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left, y = e.clientY - rect.top;
+                if (activeStamp) {
+                    drawComponentStamp(x, y, activeStamp);
+                    placedStamps.push({ x, y, type: activeStamp });
+                    playSound('beep');
+                } else {
+                    isDrawing = true;
+                    paintCtx.beginPath();
+                    paintCtx.moveTo(x, y);
+                }
+            };
+
+            canvas.onmousemove = function(e) {
+                if (!isDrawing || activeStamp) return;
+                const rect = e.target.getBoundingClientRect();
+                paintCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+                paintCtx.stroke();
+            };
+
+            canvas.onmouseup = function() { isDrawing = false; };
+            canvas.onmouseleave = function() { isDrawing = false; };
+            canvas.oncontextmenu = function(e) { e.preventDefault(); undoLastStamp(); };
+
+            let touchTimeout;
+            canvas.ontouchstart = function(e) {
+                const touch = e.touches[0];
+                const rect = e.target.getBoundingClientRect();
+                const x = touch.clientX - rect.left, y = touch.clientY - rect.top;
+                
+                touchTimeout = setTimeout(() => {
+                    undoLastStamp();
+                    isDrawing = false;
+                }, 600);
+
+                if (activeStamp) {
+                    clearTimeout(touchTimeout);
+                    drawComponentStamp(x, y, activeStamp);
+                    placedStamps.push({ x, y, type: activeStamp });
+                    playSound('beep');
+                    e.preventDefault();
+                } else {
+                    isDrawing = true;
+                    paintCtx.beginPath();
+                    paintCtx.moveTo(x, y);
+                }
+            };
+
+            canvas.ontouchmove = function(e) {
+                clearTimeout(touchTimeout);
+                if (!isDrawing || activeStamp) return;
+                const touch = e.touches[0];
+                const rect = e.target.getBoundingClientRect();
+                paintCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+                paintCtx.stroke();
+                e.preventDefault();
+            };
+
+            canvas.ontouchend = function() {
+                clearTimeout(touchTimeout);
+                isDrawing = false;
+            };
+        }
+
+        function setStamp(type) {
+            activeStamp = type;
+            playSound('click');
+            const txt = document.getElementById('activeStampText');
+            if(!type) {
+                txt.innerHTML = "Chế độ: <strong>Vẽ tự do (Bút)</strong>.";
+            } else {
+                const names = { 
+                    'resistor': 'Điện trở R', 'capacitor': 'Tụ điện C', 'inductor': 'Cuộn cảm L',
+                    'transformer': 'Máy biến áp', 'motor1p': 'Động cơ 1 pha', 'motor3p': 'Động cơ 3 pha',
+                    'esp32_board': 'Mạch ESP32', 'source': 'Nguồn', 'switch': 'Công tắc K', 
+                    'voltmeter': 'Vôn kế (V)', 'ammeter': 'Ampe kế (A)', 'multimeter': 'Vạn năng' 
+                };
+                txt.innerHTML = `Chế độ: Chọn <strong>[${names[type]}]</strong>. Bấm để đặt (Bấm chuột phải / Nhấn giữ để xóa).`;
+            }
+        }
+
+        function drawComponentStamp(x, y, type) {
+            paintCtx.save();
+            paintCtx.lineWidth = 2;
+            paintCtx.strokeStyle = '#0f172a';
+            paintCtx.fillStyle = '#f8fafc';
+            paintCtx.font = '11px Inter, sans-serif';
+
+            if (type === 'resistor') {
+                paintCtx.fillStyle = '#fef3c7'; paintCtx.fillRect(x - 25, y - 12, 50, 24); paintCtx.strokeRect(x - 25, y - 12, 50, 24);
+                paintCtx.fillStyle = '#b45309'; paintCtx.fillText('R (Ω)', x - 14, y + 4);
+            } else if (type === 'capacitor') {
+                paintCtx.fillStyle = '#cffafe'; paintCtx.fillRect(x - 25, y - 12, 50, 24); paintCtx.strokeRect(x - 25, y - 12, 50, 24);
+                paintCtx.fillStyle = '#0e7490'; paintCtx.fillText('C (µF)', x - 15, y + 4);
+            } else if (type === 'inductor') {
+                paintCtx.fillStyle = '#f3e8ff'; paintCtx.fillRect(x - 25, y - 12, 50, 24); paintCtx.strokeRect(x - 25, y - 12, 50, 24);
+                paintCtx.fillStyle = '#6b21a8'; paintCtx.fillText('L (mH)', x - 16, y + 4);
+            } else if (type === 'transformer') {
+                paintCtx.fillStyle = '#fce7f3'; paintCtx.fillRect(x - 30, y - 15, 60, 30); paintCtx.strokeRect(x - 30, y - 15, 60, 30);
+                paintCtx.fillStyle = '#be185d'; paintCtx.fillText('Biến Áp', x - 20, y + 4);
+            } else if (type === 'motor1p') {
+                paintCtx.fillStyle = '#d1fae5'; paintCtx.beginPath(); paintCtx.arc(x, y, 22, 0, Math.PI * 2); paintCtx.fill(); paintCtx.stroke();
+                paintCtx.fillStyle = '#065f46'; paintCtx.font = 'bold 10px Inter'; paintCtx.fillText('M 1Ø', x - 12, y + 4);
+            } else if (type === 'motor3p') {
+                paintCtx.fillStyle = '#fef3c7'; paintCtx.beginPath(); paintCtx.arc(x, y, 22, 0, Math.PI * 2); paintCtx.fill(); paintCtx.stroke();
+                paintCtx.fillStyle = '#92400e'; paintCtx.font = 'bold 10px Inter'; paintCtx.fillText('M 3Ø', x - 12, y + 4);
+            } else if (type === 'esp32_board') {
+                paintCtx.fillStyle = '#cffafe'; paintCtx.fillRect(x - 32, y - 18, 64, 36); paintCtx.strokeRect(x - 32, y - 18, 64, 36);
+                paintCtx.fillStyle = '#0e7490'; paintCtx.font = 'bold 10px Inter'; paintCtx.fillText('ESP32 HW', x - 26, y + 4);
+            } else if (type === 'source') {
+                paintCtx.fillStyle = '#dbeafe'; paintCtx.fillRect(x - 25, y - 15, 50, 30); paintCtx.strokeRect(x - 25, y - 15, 50, 30);
+                paintCtx.fillStyle = '#1e40af'; paintCtx.fillText('Nguồn', x - 16, y + 4);
+            } else if (type === 'switch') {
+                paintCtx.fillStyle = '#e0e7ff'; paintCtx.fillRect(x - 20, y - 10, 40, 20); paintCtx.strokeRect(x - 20, y - 10, 40, 20);
+                paintCtx.fillStyle = '#3730a3'; paintCtx.fillText('K:ON', x - 12, y + 4);
+            } else if (type === 'voltmeter') {
+                paintCtx.fillStyle = '#e0f2fe'; paintCtx.beginPath(); paintCtx.arc(x, y, 20, 0, Math.PI * 2); paintCtx.fill(); paintCtx.stroke();
+                paintCtx.fillStyle = '#0369a1'; paintCtx.font = 'bold 12px monospace'; paintCtx.fillText('Ⓥ', x - 6, y + 4);
+            } else if (type === 'ammeter') {
+                paintCtx.fillStyle = '#d1fae5'; paintCtx.beginPath(); paintCtx.arc(x, y, 20, 0, Math.PI * 2); paintCtx.fill(); paintCtx.stroke();
+                paintCtx.fillStyle = '#047857'; paintCtx.font = 'bold 12px monospace'; paintCtx.fillText('Ⓐ', x - 6, y + 4);
+            } else if (type === 'multimeter') {
+                paintCtx.fillStyle = '#fef3c7'; paintCtx.fillRect(x - 30, y - 24, 60, 48); paintCtx.strokeRect(x - 30, y - 24, 60, 48);
+                paintCtx.fillStyle = '#0b132b'; paintCtx.fillRect(x - 24, y - 18, 48, 18);
+                paintCtx.fillStyle = '#38bdf8'; paintCtx.font = '10px monospace'; paintCtx.fillText('12.0V', x - 15, y - 5);
+                paintCtx.fillStyle = '#334155'; paintCtx.beginPath(); paintCtx.arc(x, y + 10, 6, 0, Math.PI * 2); paintCtx.fill(); paintCtx.stroke();
+            }
+            paintCtx.restore();
+        }
+
+        function undoLastStamp() {
+            if (placedStamps.length === 0) {
+                playSound('error');
+                return;
+            }
+            placedStamps.pop();
+            redrawCanvas();
+            playSound('click');
+        }
+
+        function redrawCanvas() {
+            if (!paintCtx) return;
+            const canvas = document.getElementById('paintCanvas');
+            paintCtx.clearRect(0, 0, canvas.width, canvas.height);
+            placedStamps.forEach(s => {
+                drawComponentStamp(s.x, s.y, s.type);
+            });
+        }
+
+        function setPenColor(color) {
+            penColor = color; activeStamp = null;
+            if(paintCtx) paintCtx.strokeStyle = color;
+            document.getElementById('activeStampText').innerHTML = "Chế độ: <strong>Vẽ tự do (Bút)</strong>.";
+            playSound('click');
+        }
+
+        function clearCanvas() {
+            if(!paintCtx) return;
+            const canvas = document.getElementById('paintCanvas');
+            paintCtx.clearRect(0, 0, canvas.width, canvas.height);
+            placedStamps = [];
+            playSound('click');
+        }
+
+        function toggleCircuitSwitch() {
+            state.switchClosed = !state.switchClosed;
+            playSound('click');
+            const badge = document.getElementById('circuitSwitchBadge');
+            const stateTxt = document.getElementById('switchStateText');
+            const svgLbl = document.getElementById('svgSwitchLabel');
+
+            if (state.switchClosed) {
+                badge.className = "interactive-switch bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1";
+                stateTxt.innerText = "ĐÓNG (ON)"; svgLbl.textContent = "K:ON"; svgLbl.setAttribute("fill", "#fde047");
+            } else {
+                badge.className = "interactive-switch bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1";
+                stateTxt.innerText = "MỞ (OFF)"; svgLbl.textContent = "K:OFF"; svgLbl.setAttribute("fill", "#f87171");
+            }
+            calculateMultimeter();
+            drawOscilloscope();
+        }
+
+        function renderLabList() {
+            const container = document.getElementById('labListContainer');
+            container.innerHTML = labTasks.map((t, idx) => `
+                <div onclick="selectTask(${idx})" class="p-2.5 rounded-xl bg-slate-950 border ${idx === state.currentTaskIdx ? 'border-indigo-500 bg-indigo-950/40' : 'border-slate-800'} cursor-pointer flex justify-between items-center">
+                    <div>
+                        <span class="text-[11px] font-bold text-indigo-400 block">${t.title}</span>
+                        <p class="text-[10px] text-slate-400 line-clamp-1">${t.prompt}</p>
+                    </div>
+                    <span class="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-slate-300 font-mono">B${idx+1}</span>
+                </div>
+            `).join('');
+        }
+
+        function selectTask(idx) {
+            playSound('click');
+            state.currentTaskIdx = idx;
+            document.getElementById('currentLabNum').innerText = idx + 1;
+            renderLabList();
+            updateTaskPrompt();
+            resetProbes();
+            closeModal('labSelectorModal');
+        }
+
+        function nextLabTask() {
+            if (state.currentTaskIdx < labTasks.length - 1) selectTask(state.currentTaskIdx + 1);
+            else selectTask(0);
+        }
+
+        function updateTaskPrompt() {
+            const task = labTasks[state.currentTaskIdx];
+            document.getElementById('currentTaskPromptBox').innerHTML = `<strong>${task.title}:</strong> ${task.prompt}`;
+        }
+
+        function toggleMasterPower() {
+            state.powerOn = !state.powerOn;
+            playSound('click');
+            const btn = document.getElementById('masterPowerBtn');
+            const led = document.getElementById('powerLed');
+            const txt = document.getElementById('powerTextState');
+
+            if (state.powerOn) {
+                btn.className = "w-full py-2 rounded-xl font-bold text-xs transition shadow flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white";
+                document.getElementById('powerBtnLabel').innerText = "ĐANG BẬT NGUỒN";
+                led.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse"; txt.innerText = "Bật";
+            } else {
+                btn.className = "w-full py-2 rounded-xl font-bold text-xs transition shadow flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 text-white";
+                document.getElementById('powerBtnLabel').innerText = "BẬT NGUỒN CHÍNH";
+                led.className = "w-2 h-2 rounded-full bg-red-500"; txt.innerText = "Tắt";
+            }
+            calculateMultimeter();
+            drawOscilloscope();
+        }
+
+        function updateSourceVoltage(val) {
+            state.sourceVolt = parseFloat(val);
+            document.getElementById('sourceVoltDisplay').innerText = state.sourceVolt.toFixed(1) + " V";
+            playSound('click');
+            calculateMultimeter();
+            drawOscilloscope();
+        }
+
+        function changeSourceType(type) {
+            state.sourceType = type;
+            playSound('click');
+            calculateMultimeter();
+            drawOscilloscope();
+        }
+
+        function changeMeterType(type) {
+            state.meterType = type;
+            playSound('click');
+            const titles = {
+                'multimeter': 'Đồng hồ vạn năng DT-9205A+',
+                'voltmeter': 'Vôn kế chuyên dụng (V)',
+                'ammeter': 'Ampe kế chuyên dụng (A)',
+                'oscilloscope': 'Dao động ký trực tiếp'
+            };
+            document.getElementById('activeMeterTitle').innerText = titles[type];
+            calculateMultimeter();
+        }
+
+        function setCircuitTopology(topo) {
+            state.topology = topo;
+            playSound('click');
+            document.getElementById('topoSeriesBtn').className = topo === 'series' ? "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-indigo-600 text-white border border-indigo-400 transition" : "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 transition";
+            document.getElementById('topoParallelBtn').className = topo === 'parallel' ? "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-indigo-600 text-white border border-indigo-400 transition" : "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 transition";
+            document.getElementById('boardTitle').innerText = topo === 'series' ? "Mạch Nối Tiếp ($R_1, R_2$)" : "Mạch Song Song ($R_1 \parallel R_2$)";
+            calculateMultimeter();
+        }
+
+        function updateResistor(type, val) {
+            playSound('click');
+            if (type === 'r1') {
+                state.r1 = parseFloat(val);
+                document.getElementById('r1ValText').innerText = state.r1;
+                document.getElementById('svgR1Text').innerText = `R1: ${state.r1}Ω`;
+            } else {
+                state.r2 = parseFloat(val);
+                document.getElementById('r2ValText').innerText = state.r2;
+                document.getElementById('svgR2Text').innerText = `R2: ${state.r2}Ω`;
+            }
+            calculateMultimeter();
+        }
+
+        function setMultimeterMode(mode) {
+            state.multimeterMode = mode;
+            playSound('click');
+            ['VDC', 'VAC', 'Hz', 'Ohm', 'A', 'AAC'].forEach(m => {
+                const btn = document.getElementById(`modeBtn-${m}`);
+                if(btn) {
+                    btn.className = m === mode ? "py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-blue-600 text-white shadow" : "py-1.5 px-0.5 rounded text-[10px] font-bold transition bg-slate-800 text-slate-300 border border-slate-700";
+                }
+            });
+            document.getElementById('multimeterUnit').innerText = mode;
+            document.getElementById('answerUnitSpan').innerText = unitMap[mode] || 'V';
+            calculateMultimeter();
+        }
+
+        function setActiveProbe(target) {
+            state.activeProbeTarget = target;
+            playSound('click');
+            const redBtn = document.getElementById('activeProbeRedBtn');
+            const blackBtn = document.getElementById('activeProbeBlackBtn');
+            if (target === 'red') {
+                redBtn.className = "flex-1 py-1.5 px-2 rounded-lg font-bold bg-red-600 text-white shadow ring-2 ring-red-400 flex items-center justify-center gap-1 text-[11px]";
+                blackBtn.className = "flex-1 py-1.5 px-2 rounded-lg font-bold bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center gap-1 text-[11px]";
+            } else {
+                blackBtn.className = "flex-1 py-1.5 px-2 rounded-lg font-bold bg-slate-800 text-white shadow ring-2 ring-slate-400 border border-slate-700 flex items-center justify-center gap-1 text-[11px]";
+                redBtn.className = "flex-1 py-1.5 px-2 rounded-lg font-bold bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center gap-1 text-[11px]";
+            }
+        }
+
+        function connectProbeToNode(nodeName) {
+            playSound('click');
+            if (state.activeProbeTarget === 'red') {
+                state.probeRedNode = nodeName;
+                document.getElementById('probeRedNodeText').innerText = `Điểm ${nodeName}`;
+                setActiveProbe('black');
+            } else {
+                state.probeBlackNode = nodeName;
+                document.getElementById('probeBlackNodeText').innerText = `Điểm ${nodeName}`;
+            }
+            updateProbeVisuals();
+            calculateMultimeter();
+        }
+
+        function resetProbes() {
+            playSound('click');
+            state.probeRedNode = null; state.probeBlackNode = null;
+            document.getElementById('probeRedNodeText').innerText = "Trống";
+            document.getElementById('probeBlackNodeText').innerText = "Trống";
+            setActiveProbe('red');
+            updateProbeVisuals();
+            calculateMultimeter();
+        }
+
+        function updateProbeVisuals() {
+            ['A', 'B', 'C', 'D'].forEach(n => {
+                const dot = document.getElementById(`jack-${n}-dot`);
+                if (state.probeRedNode === n && state.probeBlackNode === n) dot.setAttribute('fill', '#a855f7');
+                else if (state.probeRedNode === n) dot.setAttribute('fill', '#ef4444');
+                else if (state.probeBlackNode === n) dot.setAttribute('fill', '#3b82f6');
+                else dot.setAttribute('fill', n === 'A' ? '#ef4444' : (n === 'C' ? '#3b82f6' : '#94a3b8'));
+            });
+        }
+
+        function checkCircuitSafetyAndErrors() {
+            playSound('click');
+            const box = document.getElementById('aiFeedbackBox');
+            box.classList.remove('hidden');
+            let msgs = [];
+
+            if (state.hwConnected) {
+                msgs.push("⚡ <strong>Đang kết nối phần cứng:</strong> Nhận dữ liệu truyền trực tiếp từ thiết bị ngoài qua Cổng USB / WiFi (phonglab.giangnam146.site).");
+            }
+            if (state.multimeterMode === 'Ohm' && state.powerOn) {
+                msgs.push("⚠️ <strong>LỖI NGUY HIỂM:</strong> Đo điện trở (Ω) khi nguồn đang Bật có thể gây cháy hỏng thiết bị đo!");
+            }
+            if (state.powerOn && !state.switchClosed) {
+                msgs.push("ℹ️ <strong>LƯU Ý:</strong> Công tắc K đang mở (OFF), mạch hở nên không có dòng điện chạy qua tải.");
+            }
+            if (msgs.length === 0) {
+                box.className = "text-xs p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-700 text-emerald-300";
+                box.innerHTML = "✅ <strong>Hệ thống an toàn:</strong> Cấu hình thiết bị đo và trạng thái mạch hoàn toàn chính xác.";
+            } else {
+                box.className = "text-xs p-2.5 rounded-xl bg-amber-950/80 border border-amber-700 text-amber-300";
+                box.innerHTML = msgs.join("<br>");
+                if(!state.hwConnected) playSound('error');
+            }
+        }
+
+        function calculateMultimeter() {
+            if (state.holdActive) return;
+            let val = 0; let isOL = false;
+
+            if (state.hwConnected && state.hwRealValue !== null) {
+                document.getElementById('multimeterOL').classList.add('hidden');
+                document.getElementById('multimeterScreenValue').innerText = state.hwRealValue.toFixed(2);
+                return;
+            }
+
+            const r1 = state.r1, r2 = state.r2;
+            const rEquivalent = state.topology === 'series' ? (r1 + r2) : (r1 * r2 / (r1 + r2));
+            const activeCircuit = state.powerOn && state.switchClosed;
+            const currentTotal = activeCircuit ? (state.sourceVolt / rEquivalent) * 1000 : 0;
+
+            if (state.probeRedNode && state.probeBlackNode) {
+                const r = state.probeRedNode, b = state.probeBlackNode;
+                if (state.multimeterMode === 'VDC') {
+                    if (state.sourceType === 'DC' && activeCircuit) {
+                        if (r === 'A' && (b === 'D' || b === 'C')) val = state.sourceVolt;
+                        else if (r === 'A' && b === 'B') val = state.topology === 'series' ? state.sourceVolt * (r1 / (r1 + r2)) : state.sourceVolt;
+                        else if (r === 'B' && (b === 'C' || b === 'D')) val = state.topology === 'series' ? state.sourceVolt * (r2 / (r1 + r2)) : state.sourceVolt;
+                        else if (b === 'A' && (r === 'D' || r === 'C')) val = -state.sourceVolt;
+                    }
+                } else if (state.multimeterMode === 'VAC') {
+                    if (state.sourceType === 'AC' && activeCircuit && r === 'A' && (b === 'D' || b === 'C')) val = state.sourceVolt;
+                } else if (state.multimeterMode === 'Hz') {
+                    if (state.sourceType === 'AC' && activeCircuit && r === 'A' && (b === 'D' || b === 'C')) val = 50.0;
+                } else if (state.multimeterMode === 'Ohm') {
+                    if (state.powerOn) { isOL = true; val = 9999; playSound('error'); }
+                    else {
+                        if (r === 'A' && b === 'B') val = r1;
+                        else if (r === 'B' && b === 'C') val = r2;
+                        else if (r === 'A' && (b === 'C' || b === 'D')) val = rEquivalent;
+                    }
+                } else if (state.multimeterMode === 'A' || state.multimeterMode === 'AAC') {
+                    if (activeCircuit && ((r === 'A' && b === 'B') || (r === 'A' && b === 'D'))) val = currentTotal;
+                }
+            }
+
+            if (isOL) {
+                document.getElementById('multimeterOL').classList.remove('hidden');
+                document.getElementById('multimeterScreenValue').innerText = "----";
+            } else {
+                document.getElementById('multimeterOL').classList.add('hidden');
+                document.getElementById('multimeterScreenValue').innerText = val.toFixed(2);
+            }
+        }
+
+        function toggleHold() {
+            state.holdActive = !state.holdActive;
+            playSound('click');
+            const holdEl = document.getElementById('multimeterHold');
+            if (state.holdActive) holdEl.classList.remove('hidden');
+            else holdEl.classList.add('hidden');
+        }
+
+        function submitStudentResult() {
+            playSound('click');
+            const studentVal = parseFloat(document.getElementById('studentAnswerInput').value);
+            const currentTask = labTasks[state.currentTaskIdx];
+            const targetVal = state.hwConnected && state.hwRealValue !== null ? state.hwRealValue : currentTask.evalFunc(state);
+            const feedbackBox = document.getElementById('aiFeedbackBox');
+            feedbackBox.classList.remove('hidden');
+
+            if (isNaN(studentVal)) {
+                feedbackBox.className = "text-xs p-2.5 rounded-xl bg-amber-950/80 border border-amber-700 text-amber-300";
+                feedbackBox.innerHTML = "⚠️ Vui lòng nhập số đo từ màn hình thiết bị.";
+                return;
+            }
+
+            const diff = Math.abs(studentVal - targetVal);
+            if (diff <= targetVal * 0.08 + 0.3) {
+                state.score = 10;
+                document.getElementById('scoreDisplay').innerText = state.score;
+                feedbackBox.className = "text-xs p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-700 text-emerald-300";
+                feedbackBox.innerHTML = `<strong>🎉 Hoàn thành xuất sắc!</strong> Điểm: <strong>10/10</strong>.`;
+                playSound('beep');
+            } else {
+                state.score = 5;
+                document.getElementById('scoreDisplay').innerText = state.score;
+                feedbackBox.className = "text-xs p-2.5 rounded-xl bg-amber-950/80 border border-amber-700 text-amber-300";
+                feedbackBox.innerHTML = `<strong>⚠️ Chưa khớp chuẩn (~${targetVal.toFixed(1)}).</strong> Kiểm tra lại công tắc K, nguồn hoặc thiết bị đo!`;
+                playSound('error');
+            }
+        }
+
+        function drawOscilloscope() {
+            const canvas = document.getElementById('scopeCanvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.beginPath();
+            for (let x = 0; x < canvas.width; x++) {
+                let y = canvas.height / 2;
+                if (state.powerOn && state.switchClosed) {
+                    if (state.sourceType === 'AC') y += Math.sin(x * 0.08) * (state.sourceVolt * 2);
+                    else if (state.sourceType === 'PWM') y += (Math.sin(x * 0.08) > 0 ? 20 : -20);
+                    else y -= (state.sourceVolt * 1.5);
+                }
+                if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function resetFullLab() {
+            playSound('click');
+            state.powerOn = false; state.switchClosed = true; state.sourceVolt = 12.0;
+            document.getElementById('sourceSlider').value = 12;
+            document.getElementById('sourceVoltDisplay').innerText = "12.0 V";
+            if (state.powerOn) toggleMasterPower();
+            if (!state.switchClosed) toggleCircuitSwitch();
+            resetProbes();
+            setMultimeterMode('VDC');
+            state.score = 0;
+            document.getElementById('scoreDisplay').innerText = "0";
+            document.getElementById('studentAnswerInput').value = "";
+            document.getElementById('aiFeedbackBox').classList.add('hidden');
+        }
+
+        function openModal(id) { 
+            playSound('click'); document.getElementById(id).classList.remove('hidden');
+            if(id === 'whiteboardModal') setTimeout(initWhiteboard, 50);
+        }
+        function closeModal(id) { playSound('click'); document.getElementById(id).classList.add('hidden'); }
+    </script>
+</body>
+</html>
